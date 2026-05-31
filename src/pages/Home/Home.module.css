@@ -16,30 +16,16 @@
   overflow: hidden;
 }
 
-/* Hero background — uses CSS variable so you can swap to var(--hero-image) */
+/* Hero background — set --hero-image in theme.css or drop hero.jpg in /public */
 .heroBg {
   position: absolute;
   inset: 0;
-  background-image: var(--hero-image, none);
+  background-image: var(
+    --hero-image,
+    linear-gradient(150deg, #8B3A42 0%, #C0606A 35%, #C9A96E 65%, #9B7A3C 100%)
+  );
   background-size: cover;
   background-position: center;
-  /* Warm gradient fallback when no photo is set */
-  background-color: var(--color-rose-dark);
-  background-blend-mode: multiply;
-}
-
-/* When no custom photo: render a beautiful warm gradient */
-.heroBg::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    150deg,
-    #8B3A42 0%,
-    #C0606A 35%,
-    #C9A96E 65%,
-    #9B7A3C 100%
-  );
 }
 
 .heroOverlay {
