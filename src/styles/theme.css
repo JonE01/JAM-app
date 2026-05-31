@@ -1,0 +1,92 @@
+/* ============================================================
+   DESIGN SYSTEM — edit these variables to personalize the app
+   ============================================================ */
+
+:root {
+  /* ----- Brand colours ------------------------------------ */
+  --color-rose:        #C0606A;   /* primary accent */
+  --color-rose-light:  #E8A0A5;
+  --color-rose-dark:   #8B3A42;
+  --color-rose-faint:  #FAF0F0;
+
+  --color-gold:        #C9A96E;   /* secondary accent */
+  --color-gold-light:  #E8D5B0;
+  --color-gold-dark:   #9B7A3C;
+  --color-gold-faint:  #FDF8EE;
+
+  /* ----- Neutrals ---------------------------------------- */
+  --color-cream:       #FAF6F0;   /* page background */
+  --color-cream-mid:   #F3EBE0;
+  --color-cream-dark:  #E8DDD0;
+
+  --color-ink:         #2C1810;   /* primary text */
+  --color-ink-mid:     #5C3D30;
+  --color-ink-light:   #9A7A6A;
+  --color-ink-faint:   #C8B4A8;
+
+  /* ----- Semantic ---------------------------------------- */
+  --color-surface:     #FFFFFF;
+  --color-border:      #EAE0D6;
+  --color-border-soft: #F2EBE4;
+
+  /* ----- Typography -------------------------------------- */
+  --font-heading: 'Cormorant Garamond', Georgia, serif;
+  --font-body:    'DM Sans', system-ui, sans-serif;
+
+  --text-xs:   0.75rem;     /* 12px */
+  --text-sm:   0.875rem;    /* 14px */
+  --text-base: 1rem;        /* 16px */
+  --text-lg:   1.125rem;    /* 18px */
+  --text-xl:   1.25rem;     /* 20px */
+  --text-2xl:  1.5rem;      /* 24px */
+  --text-3xl:  1.875rem;    /* 30px */
+  --text-4xl:  2.25rem;     /* 36px */
+  --text-5xl:  3rem;        /* 48px */
+  --text-6xl:  3.75rem;     /* 60px */
+
+  --leading-tight:  1.2;
+  --leading-normal: 1.6;
+
+  /* ----- Spacing ----------------------------------------- */
+  --space-1:  0.25rem;
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-5:  1.25rem;
+  --space-6:  1.5rem;
+  --space-8:  2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
+
+  /* ----- Radii ------------------------------------------- */
+  --radius-sm:   0.375rem;
+  --radius-md:   0.75rem;
+  --radius-lg:   1.25rem;
+  --radius-xl:   2rem;
+  --radius-full: 9999px;
+
+  /* ----- Shadows ----------------------------------------- */
+  --shadow-xs:  0 1px 2px rgba(44, 24, 16, 0.06);
+  --shadow-sm:  0 2px 8px rgba(44, 24, 16, 0.08);
+  --shadow-md:  0 4px 16px rgba(44, 24, 16, 0.10);
+  --shadow-lg:  0 8px 32px rgba(44, 24, 16, 0.12);
+  --shadow-xl:  0 16px 48px rgba(44, 24, 16, 0.14);
+
+  /* ----- Motion ------------------------------------------ */
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast:   150ms;
+  --duration-normal: 250ms;
+  --duration-slow:   400ms;
+
+  /* ----- Nav --------------------------------------------- */
+  --nav-height: 64px;
+
+  /* ----- Hero image (swap this path to personalize) ------ */
+  --hero-image: url('/hero.jpg');
+  /* If you don't have a hero image yet, the gradient fallback
+     in Home.jsx will show until you drop hero.jpg in /public  */
+}
