@@ -42,7 +42,8 @@
   color: var(--color-ink);
 }
 .authText { color: var(--color-ink-light); max-width: 320px; }
-.errorMsg { color: #ef4444; font-size: var(--text-sm); }
+.errorMsg   { color: #ef4444; font-size: var(--text-sm); }
+.popupHint  { color: var(--color-ink-faint); font-size: var(--text-xs); }
 
 /* ---- Timeline ---- */
 .timeline {

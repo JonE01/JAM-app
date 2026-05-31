@@ -193,7 +193,16 @@ export default function UpcomingDates() {
             >
               {error ? 'Retry' : 'Connect Calendar'}
             </Button>
-            {error && <p className={styles.errorMsg}>{error}</p>}
+            {error && (
+              <p className={styles.errorMsg}>
+                {error.includes('popup') || error.includes('Popup')
+                  ? 'Popup blocked — allow popups for this site in your browser and try again.'
+                  : error}
+              </p>
+            )}
+            {!error && !authed && (
+              <p className={styles.popupHint}>A Google sign-in window will open — allow popups if prompted.</p>
+            )}
           </motion.div>
         )}
 

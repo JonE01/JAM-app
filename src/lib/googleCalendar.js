@@ -152,8 +152,9 @@ export function requestAuth() {
       window.gapi.client.setToken({ access_token: resp.access_token });
       resolve(resp.access_token);
     };
-    // Empty prompt = skip consent screen if already granted
-    tokenClient.requestAccessToken({ prompt: '' });
+    // 'select_account' opens a standard Google popup browsers don't block.
+    // Once the user has consented, subsequent calls skip the consent screen automatically.
+    tokenClient.requestAccessToken({ prompt: 'select_account' });
   });
 }
 
