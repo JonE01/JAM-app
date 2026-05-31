@@ -117,6 +117,41 @@ h1, h2, h3, h4, h5, h6 {
 .text-muted  { color: var(--color-ink-light); }
 
 /* ============================================================
+   GOOGLE PLACES AUTOCOMPLETE DROPDOWN
+   ============================================================ */
+
+.pac-container {
+  z-index: 10000 !important;
+  border-radius: var(--radius-md) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: var(--shadow-lg) !important;
+  font-family: var(--font-body) !important;
+  margin-top: var(--space-1);
+}
+
+.pac-item {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+  cursor: pointer;
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.pac-item:hover,
+.pac-item-selected {
+  background: var(--color-rose-faint) !important;
+}
+
+.pac-item-query {
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+}
+
+.pac-matched { color: var(--color-rose); font-weight: 500; }
+
+.pac-icon { display: none; } /* hide Google's default pin icon */
+
+/* ============================================================
    LEAFLET OVERRIDES
    ============================================================ */
 

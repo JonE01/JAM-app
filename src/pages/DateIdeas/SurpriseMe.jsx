@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCollection } from '../../hooks/useCollection';
+import { useTags } from '../../hooks/useTags';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
-import { CATEGORIES } from './IdeaList';
 import styles from './SurpriseMe.module.css';
 
 const REVEAL_MESSAGES = [
@@ -16,6 +16,7 @@ const REVEAL_MESSAGES = [
 
 export default function SurpriseMe() {
   const { docs: ideas, loading } = useCollection('dateIdeas', 'createdAt');
+  const { getTag } = useTags();
   const [picked, setPicked]      = useState(null);
   const [spinning, setSpinning]  = useState(false);
   const [msg, setMsg]            = useState('');
@@ -34,9 +35,7 @@ export default function SurpriseMe() {
     setSpinning(false);
   };
 
-  const cat = picked
-    ? CATEGORIES.find((c) => c.id === picked.category) ?? CATEGORIES[1]
-    : null;
+  const cat = picked ? getTag(picked.category) : null;
 
   return (
     <div className={styles.wrapper}>

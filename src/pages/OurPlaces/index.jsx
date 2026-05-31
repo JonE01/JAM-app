@@ -1,9 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useCollection } from '../../hooks/useCollection';
+import { useTags } from '../../hooks/useTags';
+import TagManager from '../../components/ui/TagManager';
 import PageTransition from '../../components/layout/PageTransition';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -11,18 +14,8 @@ import Input, { Textarea } from '../../components/ui/Input';
 import styles from './OurPlaces.module.css';
 
 // ------------------------------------------------------------------
-// Map marker icons by category (CSS-drawn, no external images needed)
+// Map marker icon factory
 // ------------------------------------------------------------------
-const CATEGORIES = [
-  { id: 'all',        label: 'All',         emoji: '◎', color: '#C0606A' },
-  { id: 'restaurant', label: 'Restaurant',  emoji: '🍜', color: '#C9A96E' },
-  { id: 'park',       label: 'Park',        emoji: '🌿', color: '#6BAE75' },
-  { id: 'cafe',       label: 'Café',        emoji: '☕', color: '#9B7A3C' },
-  { id: 'date-spot',  label: 'Date Spot',   emoji: '♡',  color: '#C0606A' },
-  { id: 'activity',   label: 'Activity',    emoji: '✦',  color: '#7B6FA0' },
-  { id: 'other',      label: 'Other',       emoji: '◦',  color: '#9A7A6A' },
-];
-
 function makeIcon(emoji, color) {
   const svg = encodeURIComponent(`
     <svg xmlns="http://www.w3.org/2000/svg" width="36" height="44" viewBox="0 0 36 44">
@@ -40,9 +33,7 @@ function makeIcon(emoji, color) {
   });
 }
 
-const ICONS = Object.fromEntries(
-  CATEGORIES.filter((c) => c.id !== 'all').map((c) => [c.id, makeIcon(c.emoji, c.color)])
-);
+// Icons are built dynamically inside the component from useTags()
 
 // Click-on-map handler component
 function MapClickHandler({ onMapClick }) {
@@ -51,10 +42,45 @@ function MapClickHandler({ onMapClick }) {
 }
 
 // ------------------------------------------------------------------
+// Google Places loader (reuses VITE_GOOGLE_API_KEY from Calendar setup)
+// ------------------------------------------------------------------
+let placesScriptLoaded = false;
+
+function loadGooglePlaces() {
+  if (window.google?.maps?.places) return Promise.resolve();
+  if (placesScriptLoaded) {
+    // Script tag added but not ready yet — wait
+    return new Promise((res) => {
+      const id = setInterval(() => {
+        if (window.google?.maps?.places) { clearInterval(id); res(); }
+      }, 100);
+    });
+  }
+  placesScriptLoaded = true;
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_API_KEY}&libraries=places`;
+    s.async = true;
+    s.onload = res;
+    s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+function guessCategory(types = []) {
+  if (types.some(t => ['restaurant', 'food', 'meal_takeaway', 'meal_delivery'].includes(t))) return 'restaurant';
+  if (types.some(t => ['cafe', 'bakery'].includes(t))) return 'cafe';
+  if (types.some(t => ['park', 'natural_feature', 'campground'].includes(t))) return 'park';
+  if (types.some(t => ['bar', 'night_club', 'movie_theater', 'amusement_park'].includes(t))) return 'date-spot';
+  if (types.some(t => ['museum', 'art_gallery', 'library', 'bowling_alley', 'spa', 'gym'].includes(t))) return 'activity';
+  return 'other';
+}
+
+// ------------------------------------------------------------------
 
 const BLANK = {
   name:      '',
-  category:  'restaurant',
+  category:  '', // filled dynamically from first tag
   note:      '',
   rating:    5,
   been:      false,
@@ -70,13 +96,64 @@ const CITY_ZOOM = parseInt(import.meta.env.VITE_MAP_ZOOM ?? '13', 10);
 
 export default function OurPlaces() {
   const { docs: places, add, update, remove, loading } = useCollection('places', 'createdAt');
+  const { tags, addTag, removeTag, getTag } = useTags();
+
+  // Build Leaflet icons from current tags (memoised by tag list)
+  const icons = useMemo(
+    () => Object.fromEntries(tags.map((t) => [t.id, makeIcon(t.emoji, t.color)])),
+    [tags]
+  );
   const [catFilter, setCat]     = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm]         = useState(BLANK);
   const [saving, setSaving]     = useState(false);
-  const [selected, setSelected] = useState(null); // place being viewed in sidebar detail
+  const [selected, setSelected] = useState(null);
   const [search, setSearch]     = useState('');
-  const mapRef = useRef(null);
+  const [placesReady, setPlacesReady] = useState(false);
+  const mapRef       = useRef(null);
+  const searchRef    = useRef(null);
+  const autocompleteRef = useRef(null);
+
+  // Load Google Places and wire up Autocomplete
+  useEffect(() => {
+    loadGooglePlaces()
+      .then(() => setPlacesReady(true))
+      .catch(() => {}); // graceful — search box just won't autocomplete
+  }, []);
+
+  useEffect(() => {
+    if (!placesReady || !searchRef.current || autocompleteRef.current) return;
+
+    const ac = new window.google.maps.places.Autocomplete(searchRef.current, {
+      fields: ['geometry', 'name', 'formatted_address', 'types'],
+    });
+
+    ac.addListener('place_changed', () => {
+      const place = ac.getPlace();
+      if (!place.geometry?.location) return;
+
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+
+      // Fly the Leaflet map to the result
+      mapRef.current?.flyTo([lat, lng], 16, { duration: 1 });
+
+      // Pre-fill the add form
+      setForm(f => ({
+        ...f,
+        name:     place.name ?? '',
+        lat,
+        lng,
+        category: guessCategory(place.types),
+      }));
+      setShowForm(true);
+
+      // Clear the search input
+      if (searchRef.current) searchRef.current.value = '';
+    });
+
+    autocompleteRef.current = ac;
+  }, [placesReady]);
 
   const filtered = places.filter((p) => {
     const matchCat = catFilter === 'all' || p.category === catFilter;
@@ -100,7 +177,7 @@ export default function OurPlaces() {
     }
     setSaving(true);
     try {
-      await add({ ...form, name: form.name.trim() });
+      await add({ ...form, category: formCategory, name: form.name.trim() });
       setForm(BLANK);
       setShowForm(false);
       toast.success('Place saved ♡');
@@ -121,7 +198,8 @@ export default function OurPlaces() {
     toast.success('Removed');
   };
 
-  const catMeta = (id) => CATEGORIES.find((c) => c.id === id) ?? CATEGORIES[CATEGORIES.length - 1];
+  const catMeta = (id) => getTag(id);
+  const formCategory = form.category || tags[0]?.id || 'other';
 
   return (
     <PageTransition className={styles.page}>
@@ -138,18 +216,24 @@ export default function OurPlaces() {
               onChange={(e) => setSearch(e.target.value)}
             />
 
-            {/* Category filter */}
+            {/* Tag filter + manager */}
             <div className={styles.cats}>
-              {CATEGORIES.map((cat) => (
+              <button
+                className={`${styles.catBtn} ${catFilter === 'all' ? styles.catActive : ''}`}
+                onClick={() => setCat('all')}
+              >◎ All</button>
+              {tags.map((tag) => (
                 <button
-                  key={cat.id}
-                  className={`${styles.catBtn} ${catFilter === cat.id ? styles.catActive : ''}`}
-                  onClick={() => setCat(cat.id)}
+                  key={tag.id}
+                  className={`${styles.catBtn} ${catFilter === tag.id ? styles.catActive : ''}`}
+                  onClick={() => setCat(tag.id)}
                 >
-                  {cat.emoji} {cat.label}
+                  {tag.emoji} {tag.name}
                 </button>
               ))}
             </div>
+
+            <TagManager tags={tags} onAdd={addTag} onRemove={removeTag} />
 
             <p className={styles.hint}>
               Tap anywhere on the map to add a new place.
@@ -199,6 +283,17 @@ export default function OurPlaces() {
 
         {/* ---- Map ---- */}
         <div className={styles.mapWrapper}>
+          {/* Google Places search bar */}
+          <div className={styles.searchOverlay}>
+            <span className={styles.searchIcon}>⌕</span>
+            <input
+              ref={searchRef}
+              className={styles.searchInput}
+              type="text"
+              placeholder={placesReady ? 'Search for a place…' : 'Loading search…'}
+              disabled={!placesReady}
+            />
+          </div>
           <MapContainer
             center={CITY_CENTER}
             zoom={CITY_ZOOM}
@@ -217,7 +312,7 @@ export default function OurPlaces() {
               <Marker
                 key={place.id}
                 position={[place.lat, place.lng]}
-                icon={ICONS[place.category] ?? ICONS['other']}
+                icon={icons[place.category] ?? icons['other'] ?? makeIcon('◦', '#9A7A6A')}
                 eventHandlers={{ click: () => setSelected(place) }}
               >
                 <Popup>
@@ -268,11 +363,11 @@ export default function OurPlaces() {
                       <label className={styles.label}>Category</label>
                       <select
                         className={styles.select}
-                        value={form.category}
+                        value={formCategory}
                         onChange={(e) => set('category', e.target.value)}
                       >
-                        {CATEGORIES.filter((c) => c.id !== 'all').map((c) => (
-                          <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>
+                        {tags.map((t) => (
+                          <option key={t.id} value={t.id}>{t.emoji} {t.name}</option>
                         ))}
                       </select>
                     </div>

@@ -1,0 +1,191 @@
+.wrapper {
+  position: relative;
+}
+
+/* ---- Trigger button ---- */
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--color-ink-mid);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  white-space: nowrap;
+}
+.trigger:hover {
+  background: var(--color-rose-faint);
+  border-color: var(--color-rose-light);
+  color: var(--color-rose);
+}
+.chevron { font-size: 0.6rem; }
+
+/* ---- Dropdown panel ---- */
+.dropdown {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  z-index: 200;
+  width: 280px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-4);
+}
+
+.heading {
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  color: var(--color-ink);
+  margin-bottom: var(--space-3);
+}
+
+.subheading {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-ink-mid);
+  margin-bottom: var(--space-2);
+}
+
+/* ---- Tag list ---- */
+.list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.tagRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: background var(--duration-fast);
+}
+.tagRow:hover { background: var(--color-cream-mid); }
+
+.tagEmoji { font-size: var(--text-base); width: 24px; text-align: center; }
+.tagName  { flex: 1; font-size: var(--text-sm); color: var(--color-ink); }
+
+.defaultLabel {
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+  letter-spacing: 0.04em;
+}
+
+.deleteBtn {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  color: var(--color-ink-faint);
+  font-size: var(--text-base);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--duration-fast);
+  flex-shrink: 0;
+}
+.deleteBtn:hover { background: #fee2e2; color: #ef4444; }
+
+/* ---- Divider ---- */
+.divider {
+  height: 1px;
+  background: var(--color-border-soft);
+  margin: var(--space-3) 0;
+}
+
+/* ---- Add form ---- */
+.addForm { display: flex; flex-direction: column; gap: var(--space-2); }
+
+.emojiRow {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.emojiPreview {
+  width: 36px; height: 36px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-border);
+  background: var(--color-cream);
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: border-color var(--duration-fast);
+}
+.emojiPreview:hover { border-color: var(--color-rose-light); }
+
+.nameInput {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-family: var(--font-body);
+  color: var(--color-ink);
+  background: var(--color-cream);
+  outline: none;
+  transition: border-color var(--duration-fast);
+}
+.nameInput:focus { border-color: var(--color-rose-light); }
+.nameInput::placeholder { color: var(--color-ink-faint); }
+
+.addBtn {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-rose);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--duration-fast);
+  white-space: nowrap;
+}
+.addBtn:hover:not(:disabled) { background: var(--color-rose-dark); }
+.addBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---- Emoji picker grid ---- */
+.emojiGrid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  background: var(--color-cream);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+}
+
+.emojiCell {
+  width: 28px; height: 28px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: none;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--duration-fast);
+}
+.emojiCell:hover    { background: var(--color-cream-dark); }
+.emojiCellActive    { background: var(--color-rose-faint); outline: 1.5px solid var(--color-rose-light); }
+
+.customEmojiInput {
+  width: 28px; height: 28px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: 0.9rem;
+  text-align: center;
+  outline: none;
+  padding: 0;
+}
