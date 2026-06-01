@@ -128,7 +128,11 @@ export default function UpcomingDates() {
       setAuthed(true);
       await load();
     } catch (e) {
-      setError(e.error_description ?? e.message ?? 'Auth failed');
+      // GIS rejects with a plain object { error, error_description } — not an Error instance.
+      const msg = e.error_description
+        ?? e.message
+        ?? (e.error ? `Sign-in error (${e.error.replace(/_/g, ' ')})` : 'Auth failed');
+      setError(msg);
       setLoading(false);
     }
   };

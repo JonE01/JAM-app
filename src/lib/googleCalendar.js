@@ -142,7 +142,18 @@ export async function initGoogleCalendar() {
 export function requestAuth() {
   return new Promise((resolve, reject) => {
     if (!tokenClient) { reject(new Error('Google not initialized')); return; }
+
+    // If the callback never fires (e.g. client_id missing or Vercel domain not in
+    // Authorized JavaScript Origins), we'd hang forever — fail fast with a clear message.
+    const timer = setTimeout(() => {
+      reject(new Error(
+        'Sign-in timed out — add this site\'s URL to your Google OAuth Client\'s ' +
+        'Authorized JavaScript Origins in Google Cloud Console, then retry.'
+      ));
+    }, 30000);
+
     tokenClient.callback = (resp) => {
+      clearTimeout(timer);
       if (resp.error) {
         clearSavedToken();
         reject(resp);

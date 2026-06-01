@@ -56,42 +56,34 @@ function parseAppleDate(raw) {
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+async function icloudPost(token, endpoint, payload) {
+  const res = await fetch(`${BASE_PATH}/${token}/${endpoint}`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`iCloud ${endpoint} error: ${res.status}`);
+  return res.json();
+}
+
 export async function fetchAlbumPhotos(albumToken) {
   // ── Step 1: stream metadata ──────────────────────────────────────
-  const streamRes = await fetch(
-    `${BASE_PATH}/${albumToken}/sharedstreams/webstream`,
-    {
-      method:  'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body:    JSON.stringify({ streamCtag: null }),
-    }
+  const streamData = await icloudPost(
+    albumToken,
+    'sharedstreams/webstream',
+    { streamCtag: null }
   );
 
-  if (!streamRes.ok) {
-    throw new Error(`iCloud stream error: ${streamRes.status}`);
-  }
-
-  const streamData = await streamRes.json();
-  const photos     = streamData.photos ?? [];
-
+  const photos = streamData.photos ?? [];
   if (photos.length === 0) return [];
 
   // ── Step 2: asset (CDN) URLs ─────────────────────────────────────
   const photoGuids = photos.map((p) => p.photoGuid);
-  const urlRes = await fetch(
-    `${BASE_PATH}/${albumToken}/sharedstreams/webasseturls`,
-    {
-      method:  'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body:    JSON.stringify({ photoGuids }),
-    }
+  const urlData    = await icloudPost(
+    albumToken,
+    'sharedstreams/webasseturls',
+    { photoGuids }
   );
-
-  if (!urlRes.ok) {
-    throw new Error(`iCloud assets error: ${urlRes.status}`);
-  }
-
-  const urlData    = await urlRes.json();
   const itemValues = Object.values(urlData.items ?? {});
 
 
