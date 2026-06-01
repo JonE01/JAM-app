@@ -57,10 +57,10 @@ function parseAppleDate(raw) {
 }
 
 async function icloudPost(token, endpoint, payload) {
-  const res = await fetch(`${BASE_PATH}/${token}/${endpoint}`, {
+  const res = await fetch(BASE_PATH, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(payload),
+    body:    JSON.stringify({ token, endpoint, payload }),
   });
   if (!res.ok) throw new Error(`iCloud ${endpoint} error: ${res.status}`);
   return res.json();

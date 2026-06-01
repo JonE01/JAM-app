@@ -8,22 +8,28 @@ function icloudDevProxy() {
     name: 'icloud-dev-proxy',
     configureServer(server) {
       server.middlewares.use('/api/icloud-photos', (req, res) => {
-        // req.url here is the path after the mount point, e.g. /TOKEN/sharedstreams/webstream
-        const parts = (req.url || '').split('/').filter(Boolean);
-        const token    = parts[0];
-        const endpoint = parts.slice(1).join('/');
-
-        if (!token || !endpoint) {
-          res.statusCode = 400;
-          res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ error: 'Missing token or endpoint' }));
-          return;
-        }
-
         const chunks = [];
         req.on('data', (chunk) => chunks.push(chunk));
         req.on('end', async () => {
-          const body = Buffer.concat(chunks).toString();
+          let parsed;
+          try {
+            parsed = JSON.parse(Buffer.concat(chunks).toString());
+          } catch {
+            res.statusCode = 400;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+            return;
+          }
+
+          const { token, endpoint, payload } = parsed;
+
+          if (!token || !endpoint) {
+            res.statusCode = 400;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'Missing token or endpoint' }));
+            return;
+          }
+
           let appleServer = 'p63';
           let appleRes;
 
@@ -37,7 +43,7 @@ function icloudDevProxy() {
                   'Origin':       'https://www.icloud.com',
                   'User-Agent':   'Mozilla/5.0 (compatible; JAM-App/1.0)',
                 },
-                body,
+                body: JSON.stringify(payload),
               });
 
               if (appleRes.status === 330) {
