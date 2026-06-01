@@ -102,6 +102,7 @@
   background: var(--color-cream);
   cursor: pointer;
   transition: all var(--duration-fast);
+  position: relative;
 }
 .placeItem:hover { border-color: var(--color-rose-light); background: var(--color-rose-faint); }
 .placeItemActive { border-color: var(--color-rose) !important; background: var(--color-rose-faint) !important; }
@@ -109,10 +110,36 @@
 .placeTop {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: var(--space-1);
 }
-.placeEmoji { font-size: var(--text-lg); }
+.placeEmoji { font-size: var(--text-lg); flex-shrink: 0; }
+
+.placeStatus { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; }
+
+.beenBadge {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: #9A7A3C;
+  background: rgba(201, 169, 110, 0.15);
+  border: 1px solid rgba(201, 169, 110, 0.4);
+  border-radius: var(--radius-full);
+  padding: 1px var(--space-2);
+}
+.wantBadge {
+  font-size: var(--text-xs);
+  color: var(--color-ink-light);
+  background: var(--color-cream-mid);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-full);
+  padding: 1px var(--space-2);
+}
+.placeBangs {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: #D4879A;
+  letter-spacing: 1px;
+}
 
 .placeName {
   font-weight: 500;
@@ -121,11 +148,45 @@
   margin-bottom: var(--space-1);
 }
 
+.placeFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 16px;
+}
 .placeRating {
   font-size: var(--text-xs);
   color: var(--color-gold);
   letter-spacing: 2px;
 }
+.placeIdeaCount {
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+  background: var(--color-cream-mid);
+  border-radius: var(--radius-full);
+  padding: 1px var(--space-2);
+}
+
+.placeItemBeen { border-left: 3px solid rgba(201, 169, 110, 0.5); }
+
+.editBtn {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: none;
+  border: none;
+  font-size: var(--text-sm);
+  color: var(--color-ink-faint);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity var(--duration-fast), color var(--duration-fast), background var(--duration-fast);
+}
+.placeItem:hover .editBtn { opacity: 1; }
+.editBtn:hover { color: var(--color-gold-dark); background: var(--color-gold-faint); }
 
 /* ---- Search overlay ---- */
 .searchOverlay {
@@ -289,7 +350,62 @@
 
 .addActions { display: flex; justify-content: flex-end; gap: var(--space-3); }
 
-/* Mobile */
+/* ---- Excitement bangs selector ---- */
+.bangs { display: flex; gap: var(--space-2); }
+.bangBtn {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-border);
+  background: var(--color-cream);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-ink-faint);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  letter-spacing: 2px;
+}
+.bangBtn:hover { border-color: #D4879A; color: #D4879A; }
+.bangFilled { background: rgba(212,135,154,0.12) !important; border-color: #D4879A !important; color: #D4879A !important; }
+
+/* ---- Where am I button ---- */
+.locBtn {
+  position: absolute;
+  bottom: var(--space-12);
+  right: var(--space-4);
+  z-index: 1000;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  box-shadow: var(--shadow-md);
+  font-size: 1.2rem;
+  color: #3B82F6;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: box-shadow var(--duration-fast);
+}
+.locBtn:hover { box-shadow: var(--shadow-lg); }
+
+/* ---- Popup enhancements ---- */
+.popupName { font-size: var(--text-base); color: var(--color-ink); }
+.popupNote { font-size: var(--text-sm); color: var(--color-ink-light); margin-top: var(--space-1); }
+.popupRating { font-size: var(--text-sm); color: var(--color-gold); letter-spacing: 2px; }
+.popupBangs  { font-size: var(--text-xs); color: #D4879A; font-weight: 700; letter-spacing: 1px; }
+
+.popupIdeas { margin-top: var(--space-2); border-top: 1px solid var(--color-border-soft); padding-top: var(--space-2); }
+.popupIdeasLabel { font-size: var(--text-xs); font-weight: 600; color: var(--color-ink-mid); margin-bottom: var(--space-1); }
+.popupIdeaChip {
+  display: inline-block;
+  margin: 2px;
+  padding: 2px var(--space-2);
+  background: var(--color-rose-faint);
+  border: 1px solid var(--color-rose-light);
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  color: var(--color-rose);
+}
+
+/* ---- Mobile ---- */
 @media (max-width: 768px) {
   .layout { flex-direction: column; height: auto; overflow: visible; }
   .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--color-border); }

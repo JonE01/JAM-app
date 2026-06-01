@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import { useState, useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, CircleMarker, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,60 +9,69 @@ import { useTags } from '../../hooks/useTags';
 import TagManager from '../../components/ui/TagManager';
 import PageTransition from '../../components/layout/PageTransition';
 import Button from '../../components/ui/Button';
-import Badge from '../../components/ui/Badge';
 import Input, { Textarea } from '../../components/ui/Input';
 import styles from './OurPlaces.module.css';
 
 // ------------------------------------------------------------------
 // Map marker icon factory
+// opts: { been, wantScore (1-3), rating (0-5) }
 // ------------------------------------------------------------------
-function makeIcon(emoji, color) {
-  const svg = encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="44" viewBox="0 0 36 44">
-      <ellipse cx="18" cy="40" rx="8" ry="4" fill="rgba(0,0,0,0.15)"/>
-      <path d="M18 2 C9 2 2 9 2 18 C2 30 18 42 18 42 C18 42 34 30 34 18 C34 9 27 2 18 2Z"
-            fill="${color}" stroke="white" stroke-width="2"/>
-      <text x="18" y="22" text-anchor="middle" font-size="14" fill="white">${emoji}</text>
-    </svg>
-  `);
+function makeIcon(emoji, color, { been = false, wantScore = 0, rating = 0 } = {}) {
+  const bangs = !been && wantScore > 0 ? '!'.repeat(Math.min(3, wantScore)) : '';
+  const stars = been && rating > 0 ? '★'.repeat(Math.min(5, rating)) : '';
+  const topPad = bangs ? 14 : 0;
+  const botPad = stars ? 14 : 0;
+  const totalH = topPad + 44 + botPad;
+  const border = been ? '#C9A96E' : 'white';
+  const strokeW = been ? 2.5 : 2;
+
+  const svg = [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="${totalH}" viewBox="0 0 36 ${totalH}">`,
+    bangs ? `<text x="18" y="11" text-anchor="middle" font-size="11" font-weight="bold" fill="#D4879A" font-family="sans-serif">${bangs}</text>` : '',
+    `<g transform="translate(0,${topPad})">`,
+    `<ellipse cx="18" cy="40" rx="8" ry="4" fill="rgba(0,0,0,0.15)"/>`,
+    `<path d="M18 2 C9 2 2 9 2 18 C2 30 18 42 18 42 C18 42 34 30 34 18 C34 9 27 2 18 2Z" fill="${color}" stroke="${border}" stroke-width="${strokeW}"/>`,
+    `<text x="18" y="22" text-anchor="middle" font-size="14" fill="white" font-family="sans-serif">${emoji}</text>`,
+    `</g>`,
+    stars ? `<text x="18" y="${topPad + 56}" text-anchor="middle" font-size="9" fill="#C9A96E" font-family="sans-serif">${stars}</text>` : '',
+    `</svg>`,
+  ].join('');
+
   return L.icon({
-    iconUrl:    `data:image/svg+xml,${svg}`,
-    iconSize:   [36, 44],
-    iconAnchor: [18, 44],
-    popupAnchor:[0, -44],
+    iconUrl:     `data:image/svg+xml,${encodeURIComponent(svg)}`,
+    iconSize:    [36, totalH],
+    iconAnchor:  [18, topPad + 44],
+    popupAnchor: [0, -(topPad + 44)],
   });
 }
 
-// Icons are built dynamically inside the component from useTags()
+// Blue dot for current user location
+const LOC_DOT = (() => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><circle cx="10" cy="10" r="9" fill="#3B82F6" fill-opacity="0.25"/><circle cx="10" cy="10" r="5" fill="#3B82F6"/><circle cx="10" cy="10" r="5" fill="none" stroke="white" stroke-width="2"/></svg>`;
+  return L.icon({ iconUrl: `data:image/svg+xml,${encodeURIComponent(svg)}`, iconSize: [20, 20], iconAnchor: [10, 10], popupAnchor: [0, -14] });
+})();
 
-// Click-on-map handler component
 function MapClickHandler({ onMapClick }) {
   useMapEvents({ click: (e) => onMapClick(e.latlng) });
   return null;
 }
 
 // ------------------------------------------------------------------
-// Google Places loader (reuses VITE_GOOGLE_API_KEY from Calendar setup)
+// Google Places loader (reuses VITE_GOOGLE_API_KEY)
 // ------------------------------------------------------------------
 let placesScriptLoaded = false;
-
 function loadGooglePlaces() {
   if (window.google?.maps?.places) return Promise.resolve();
   if (placesScriptLoaded) {
-    // Script tag added but not ready yet — wait
     return new Promise((res) => {
-      const id = setInterval(() => {
-        if (window.google?.maps?.places) { clearInterval(id); res(); }
-      }, 100);
+      const id = setInterval(() => { if (window.google?.maps?.places) { clearInterval(id); res(); } }, 100);
     });
   }
   placesScriptLoaded = true;
   return new Promise((res, rej) => {
     const s = document.createElement('script');
     s.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_API_KEY}&libraries=places`;
-    s.async = true;
-    s.onload = res;
-    s.onerror = rej;
+    s.async = true; s.onload = res; s.onerror = rej;
     document.head.appendChild(s);
   });
 }
@@ -79,79 +88,68 @@ function guessCategory(types = []) {
 // ------------------------------------------------------------------
 
 const BLANK = {
-  name:      '',
-  category:  '', // filled dynamically from first tag
-  note:      '',
-  rating:    5,
-  been:      false,
-  lat:       null,
-  lng:       null,
+  name: '', category: '', note: '',
+  rating: 0, wantScore: 2,
+  been: false, lat: null, lng: null,
 };
 
 const CITY_CENTER = [
-  parseFloat(import.meta.env.VITE_MAP_LAT   ?? '40.7128'),
-  parseFloat(import.meta.env.VITE_MAP_LNG   ?? '-74.0060'),
+  parseFloat(import.meta.env.VITE_MAP_LAT ?? '40.7128'),
+  parseFloat(import.meta.env.VITE_MAP_LNG ?? '-74.0060'),
 ];
 const CITY_ZOOM = parseInt(import.meta.env.VITE_MAP_ZOOM ?? '13', 10);
 
 export default function OurPlaces() {
   const { docs: places, add, update, remove, loading } = useCollection('places', 'createdAt');
-  const { tags, addTag, removeTag, getTag } = useTags();
+  const { docs: ideas }                                 = useCollection('dateIdeas', 'createdAt');
+  const { tags, addTag, removeTag, getTag }             = useTags();
 
-  // Build Leaflet icons from current tags (memoised by tag list)
-  const icons = useMemo(
-    () => Object.fromEntries(tags.map((t) => [t.id, makeIcon(t.emoji, t.color)])),
-    [tags]
-  );
   const [catFilter, setCat]     = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm]         = useState(BLANK);
+  const [editingId, setEditingId] = useState(null);
   const [saving, setSaving]     = useState(false);
   const [selected, setSelected] = useState(null);
   const [search, setSearch]     = useState('');
   const [placesReady, setPlacesReady] = useState(false);
-  const mapRef       = useRef(null);
-  const searchRef    = useRef(null);
+  const [userPos, setUserPos]   = useState(null);
+  const [userAccuracy, setUserAccuracy] = useState(0);
+
+  const mapRef          = useRef(null);
+  const searchRef       = useRef(null);
   const autocompleteRef = useRef(null);
 
-  // Load Google Places and wire up Autocomplete
+  // Geolocation watch
   useEffect(() => {
-    loadGooglePlaces()
-      .then(() => setPlacesReady(true))
-      .catch(() => {}); // graceful — search box just won't autocomplete
+    if (!navigator.geolocation) return;
+    const wid = navigator.geolocation.watchPosition(
+      (pos) => { setUserPos([pos.coords.latitude, pos.coords.longitude]); setUserAccuracy(pos.coords.accuracy); },
+      null,
+      { enableHighAccuracy: true }
+    );
+    return () => navigator.geolocation.clearWatch(wid);
+  }, []);
+
+  // Google Places autocomplete for the search bar
+  useEffect(() => {
+    loadGooglePlaces().then(() => setPlacesReady(true)).catch(() => {});
   }, []);
 
   useEffect(() => {
     if (!placesReady || !searchRef.current || autocompleteRef.current) return;
-
     const ac = new window.google.maps.places.Autocomplete(searchRef.current, {
       fields: ['geometry', 'name', 'formatted_address', 'types'],
     });
-
     ac.addListener('place_changed', () => {
       const place = ac.getPlace();
       if (!place.geometry?.location) return;
-
       const lat = place.geometry.location.lat();
       const lng = place.geometry.location.lng();
-
-      // Fly the Leaflet map to the result
       mapRef.current?.flyTo([lat, lng], 16, { duration: 1 });
-
-      // Pre-fill the add form
-      setForm(f => ({
-        ...f,
-        name:     place.name ?? '',
-        lat,
-        lng,
-        category: guessCategory(place.types),
-      }));
+      setForm(f => ({ ...f, name: place.name ?? '', lat, lng, category: guessCategory(place.types) }));
       setShowForm(true);
-
-      // Clear the search input
       if (searchRef.current) searchRef.current.value = '';
     });
-
     autocompleteRef.current = ac;
   }, [placesReady]);
 
@@ -169,7 +167,29 @@ export default function OurPlaces() {
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
-  const handleAdd = async (e) => {
+  const openEdit = (place) => {
+    setEditingId(place.id);
+    setForm({
+      name:      place.name,
+      category:  place.category,
+      note:      place.note ?? '',
+      rating:    place.rating ?? 0,
+      wantScore: place.wantScore ?? 2,
+      been:      place.been ?? false,
+      lat:       place.lat,
+      lng:       place.lng,
+    });
+    setShowForm(true);
+    mapRef.current?.flyTo([place.lat, place.lng], 16, { duration: 1 });
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setForm(BLANK);
+    setEditingId(null);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.lat || !form.name.trim()) {
       toast.error('Tap the map to drop a pin first.');
@@ -177,12 +197,17 @@ export default function OurPlaces() {
     }
     setSaving(true);
     try {
-      await add({ ...form, category: formCategory, name: form.name.trim() });
-      setForm(BLANK);
-      setShowForm(false);
-      toast.success('Place saved ♡');
+      const data = { ...form, category: formCategory, name: form.name.trim() };
+      if (editingId) {
+        await update(editingId, data);
+        toast.success('Place updated ♡');
+      } else {
+        await add(data);
+        toast.success('Place saved ♡');
+      }
+      closeForm();
     } catch {
-      toast.error('Failed to save place');
+      toast.error(editingId ? 'Failed to update place' : 'Failed to save place');
     } finally {
       setSaving(false);
     }
@@ -198,8 +223,21 @@ export default function OurPlaces() {
     toast.success('Removed');
   };
 
-  const catMeta = (id) => getTag(id);
   const formCategory = form.category || tags[0]?.id || 'other';
+
+  // Compute per-place icons inline (small app, cheap)
+  const getIcon = (place) => {
+    const tag = getTag(place.category);
+    return makeIcon(tag.emoji, tag.color, {
+      been:      place.been ?? false,
+      wantScore: place.wantScore ?? 0,
+      rating:    place.rating ?? 0,
+    });
+  };
+
+  // Reverse lookup: ideas linked to each place
+  const linkedIdeasFor = (placeId) =>
+    ideas.filter((idea) => (idea.locationIds ?? []).includes(placeId));
 
   return (
     <PageTransition className={styles.page}>
@@ -216,7 +254,6 @@ export default function OurPlaces() {
               onChange={(e) => setSearch(e.target.value)}
             />
 
-            {/* Tag filter + manager */}
             <div className={styles.cats}>
               <button
                 className={`${styles.catBtn} ${catFilter === 'all' ? styles.catActive : ''}`}
@@ -227,20 +264,15 @@ export default function OurPlaces() {
                   key={tag.id}
                   className={`${styles.catBtn} ${catFilter === tag.id ? styles.catActive : ''}`}
                   onClick={() => setCat(tag.id)}
-                >
-                  {tag.emoji} {tag.name}
-                </button>
+                >{tag.emoji} {tag.name}</button>
               ))}
             </div>
 
             <TagManager tags={tags} onAdd={addTag} onRemove={removeTag} />
 
-            <p className={styles.hint}>
-              Tap anywhere on the map to add a new place.
-            </p>
+            <p className={styles.hint}>Tap anywhere on the map to add a new place.</p>
           </div>
 
-          {/* Place list */}
           <div className={styles.placeList}>
             {loading && <p className={styles.loadingText}>Loading places…</p>}
             {!loading && filtered.length === 0 && (
@@ -248,7 +280,8 @@ export default function OurPlaces() {
             )}
             <AnimatePresence>
               {filtered.map((place) => {
-                const cat = catMeta(place.category);
+                const cat = getTag(place.category);
+                const ideaCount = linkedIdeasFor(place.id).length;
                 return (
                   <motion.div
                     key={place.id}
@@ -257,23 +290,39 @@ export default function OurPlaces() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 12 }}
                     transition={{ duration: 0.25 }}
-                    className={`${styles.placeItem} ${selected?.id === place.id ? styles.placeItemActive : ''}`}
+                    className={`${styles.placeItem} ${selected?.id === place.id ? styles.placeItemActive : ''} ${place.been ? styles.placeItemBeen : ''}`}
                     onClick={() => {
                       setSelected(selected?.id === place.id ? null : place);
-                      // Pan map to the place
                       mapRef.current?.flyTo([place.lat, place.lng], 16, { duration: 1 });
                     }}
                   >
                     <div className={styles.placeTop}>
-                      <Badge variant={place.been ? 'gold' : 'cream'}>
-                        {place.been ? '✓ Been' : '◌ Want to go'}
-                      </Badge>
+                      <div className={styles.placeStatus}>
+                        {place.been
+                          ? <span className={styles.beenBadge}>✓ Been</span>
+                          : <span className={styles.wantBadge}>◌ Want to go</span>}
+                        {!place.been && (place.wantScore ?? 0) > 0 && (
+                          <span className={styles.placeBangs}>{'!'.repeat(place.wantScore)}</span>
+                        )}
+                      </div>
                       <span className={styles.placeEmoji}>{cat.emoji}</span>
                     </div>
                     <p className={styles.placeName}>{place.name}</p>
-                    <div className={styles.placeRating}>
-                      {'★'.repeat(place.rating ?? 0)}{'☆'.repeat(5 - (place.rating ?? 0))}
+                    <div className={styles.placeFooter}>
+                      {place.been && (place.rating ?? 0) > 0 && (
+                        <span className={styles.placeRating}>
+                          {'★'.repeat(place.rating)}{'☆'.repeat(5 - place.rating)}
+                        </span>
+                      )}
+                      {ideaCount > 0 && (
+                        <span className={styles.placeIdeaCount}>{ideaCount} idea{ideaCount > 1 ? 's' : ''}</span>
+                      )}
                     </div>
+                    <button
+                      className={styles.editBtn}
+                      onClick={(e) => { e.stopPropagation(); openEdit(place); }}
+                      aria-label="Edit place"
+                    >✎</button>
                   </motion.div>
                 );
               })}
@@ -294,12 +343,17 @@ export default function OurPlaces() {
               disabled={!placesReady}
             />
           </div>
-          <MapContainer
-            center={CITY_CENTER}
-            zoom={CITY_ZOOM}
-            className={styles.map}
-            ref={mapRef}
-          >
+
+          {/* Where am I button */}
+          {userPos && (
+            <button
+              className={styles.locBtn}
+              onClick={() => mapRef.current?.flyTo(userPos, 17, { duration: 1 })}
+              title="Centre on my location"
+            >◎</button>
+          )}
+
+          <MapContainer center={CITY_CENTER} zoom={CITY_ZOOM} className={styles.map} ref={mapRef}>
             <TileLayer
               attribution='&copy; <a href="https://carto.com/">Carto</a>'
               url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
@@ -308,32 +362,75 @@ export default function OurPlaces() {
             />
             <MapClickHandler onMapClick={handleMapClick} />
 
-            {filtered.map((place) => (
-              <Marker
-                key={place.id}
-                position={[place.lat, place.lng]}
-                icon={icons[place.category] ?? icons['other'] ?? makeIcon('◦', '#9A7A6A')}
-                eventHandlers={{ click: () => setSelected(place) }}
-              >
-                <Popup>
-                  <div className={styles.popup}>
-                    <strong>{place.name}</strong>
-                    {place.note && <p>{place.note}</p>}
-                    <div className={styles.popupActions}>
-                      <button onClick={() => toggleBeen(place)}>
-                        {place.been ? '✓ Been here' : '◌ Want to go'}
-                      </button>
-                      <button onClick={() => handleRemove(place.id)} style={{ color: '#ef4444' }}>
-                        Remove
-                      </button>
+            {/* Place markers */}
+            {filtered.map((place) => {
+              const icon       = getIcon(place);
+              const linked     = linkedIdeasFor(place.id);
+              return (
+                <Marker
+                  key={place.id}
+                  position={[place.lat, place.lng]}
+                  icon={icon}
+                  eventHandlers={{ click: () => setSelected(place) }}
+                >
+                  <Popup>
+                    <div className={styles.popup}>
+                      <strong className={styles.popupName}>{place.name}</strong>
+
+                      {place.note && <p className={styles.popupNote}>{place.note}</p>}
+
+                      {place.been && (place.rating ?? 0) > 0 && (
+                        <p className={styles.popupRating}>
+                          {'★'.repeat(place.rating)}{'☆'.repeat(5 - place.rating)}
+                        </p>
+                      )}
+
+                      {!place.been && (place.wantScore ?? 0) > 0 && (
+                        <p className={styles.popupBangs}>
+                          {'!'.repeat(place.wantScore)} excited
+                        </p>
+                      )}
+
+                      {linked.length > 0 && (
+                        <div className={styles.popupIdeas}>
+                          <p className={styles.popupIdeasLabel}>Date ideas here:</p>
+                          {linked.map((idea) => (
+                            <span key={idea.id} className={styles.popupIdeaChip}>{idea.title}</span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className={styles.popupActions}>
+                        <button onClick={() => toggleBeen(place)}>
+                          {place.been ? '✓ Been here' : '◌ Want to go'}
+                        </button>
+                        <button onClick={() => openEdit(place)}>✎ Edit</button>
+                        <button onClick={() => handleRemove(place.id)} style={{ color: '#ef4444' }}>Remove</button>
+                      </div>
                     </div>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
+                  </Popup>
+                </Marker>
+              );
+            })}
+
+            {/* Current location */}
+            {userPos && (
+              <>
+                {userAccuracy > 30 && (
+                  <Circle
+                    center={userPos}
+                    radius={userAccuracy}
+                    pathOptions={{ color: '#3B82F6', fillColor: '#3B82F6', fillOpacity: 0.08, weight: 1 }}
+                  />
+                )}
+                <Marker position={userPos} icon={LOC_DOT}>
+                  <Popup>You are here</Popup>
+                </Marker>
+              </>
+            )}
           </MapContainer>
 
-          {/* Add-place form (slides up from bottom when a pin is dropped) */}
+          {/* Add / Edit place panel */}
           <AnimatePresence>
             {showForm && (
               <motion.div
@@ -344,11 +441,13 @@ export default function OurPlaces() {
                 className={styles.addPanel}
               >
                 <div className={styles.addPanelHandle} />
-                <form onSubmit={handleAdd} className={styles.addForm}>
-                  <h3 className={styles.addTitle}>Add a Place</h3>
-                  <p className={styles.addCoords}>
-                    📍 {form.lat?.toFixed(5)}, {form.lng?.toFixed(5)}
-                  </p>
+                <form onSubmit={handleSubmit} className={styles.addForm}>
+                  <h3 className={styles.addTitle}>{editingId ? 'Edit Place' : 'Add a Place'}</h3>
+                  {!editingId && (
+                    <p className={styles.addCoords}>
+                      {form.lat ? `📍 ${form.lat.toFixed(5)}, ${form.lng.toFixed(5)}` : '📍 Tap the map to set location'}
+                    </p>
+                  )}
 
                   <div className={styles.addRow}>
                     <Input
@@ -374,19 +473,7 @@ export default function OurPlaces() {
                   </div>
 
                   <div className={styles.addRow}>
-                    <div className={styles.group}>
-                      <label className={styles.label}>Rating</label>
-                      <div className={styles.stars}>
-                        {[1,2,3,4,5].map((n) => (
-                          <button
-                            key={n}
-                            type="button"
-                            className={`${styles.star} ${n <= form.rating ? styles.starFilled : ''}`}
-                            onClick={() => set('rating', n)}
-                          >★</button>
-                        ))}
-                      </div>
-                    </div>
+                    {/* Status toggle */}
                     <div className={styles.group}>
                       <label className={styles.label}>Status</label>
                       <div className={styles.toggle}>
@@ -402,6 +489,38 @@ export default function OurPlaces() {
                         >Been here</button>
                       </div>
                     </div>
+
+                    {/* Excitement (! marks) — only when not been */}
+                    {!form.been && (
+                      <div className={styles.group}>
+                        <label className={styles.label}>Excitement</label>
+                        <div className={styles.bangs}>
+                          {[1, 2, 3].map((n) => (
+                            <button
+                              key={n}
+                              type="button"
+                              className={`${styles.bangBtn} ${form.wantScore >= n ? styles.bangFilled : ''}`}
+                              onClick={() => set('wantScore', form.wantScore === n ? 0 : n)}
+                            >{'!'.repeat(n)}</button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Rating stars — always visible, meaningful when been=true */}
+                    <div className={styles.group}>
+                      <label className={styles.label}>Rating</label>
+                      <div className={styles.stars}>
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <button
+                            key={n}
+                            type="button"
+                            className={`${styles.star} ${n <= form.rating ? styles.starFilled : ''}`}
+                            onClick={() => set('rating', form.rating === n ? 0 : n)}
+                          >★</button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
 
                   <Textarea
@@ -412,10 +531,17 @@ export default function OurPlaces() {
                   />
 
                   <div className={styles.addActions}>
-                    <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" loading={saving}>Save Place</Button>
+                    {editingId && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemove(editingId).then(closeForm)}
+                        style={{ color: '#ef4444', marginRight: 'auto' }}
+                      >Delete</Button>
+                    )}
+                    <Button type="button" variant="ghost" onClick={closeForm}>Cancel</Button>
+                    <Button type="submit" loading={saving}>{editingId ? 'Save Changes' : 'Save Place'}</Button>
                   </div>
                 </form>
               </motion.div>
