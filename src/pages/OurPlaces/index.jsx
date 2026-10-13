@@ -98,6 +98,12 @@ const CITY_CENTER = [
   parseFloat(import.meta.env.VITE_MAP_LNG ?? '-74.0060'),
 ];
 const CITY_ZOOM = parseInt(import.meta.env.VITE_MAP_ZOOM ?? '13', 10);
+const CARTO_API_KEY = import.meta.env.VITE_CARTO_API_KEY?.trim();
+const MAP_TILE_URL = CARTO_API_KEY
+  ? `https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(CARTO_API_KEY)}`
+  : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const MAP_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  + (CARTO_API_KEY ? ' &copy; <a href="https://carto.com/">CARTO</a>' : '');
 
 export default function OurPlaces() {
   const { docs: places, add, update, remove, loading } = useCollection('places', 'createdAt');
@@ -355,8 +361,8 @@ export default function OurPlaces() {
 
           <MapContainer center={CITY_CENTER} zoom={CITY_ZOOM} className={styles.map} ref={mapRef}>
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution={MAP_ATTRIBUTION}
+              url={MAP_TILE_URL}
               maxZoom={19}
             />
             <MapClickHandler onMapClick={handleMapClick} />

@@ -121,6 +121,16 @@ This key is used **server-side only** in `api/generate-event.js` — it's never 
 Set `VITE_MAP_LAT` and `VITE_MAP_LNG` to the coordinates of your city.  
 You can right-click on Google Maps and choose **"What's here?"** to get the exact coordinates.
 
+`VITE_MAP_ZOOM` sets the starting zoom level (defaults to `13`). Restart the local dev server after changing `.env.local`.
+
+For the live site, set these variables in **Vercel → Project Settings → Environment Variables** for **Production**, then redeploy. `.env.local` is excluded from Git, so pushing to `main` does not upload its values. Vite embeds these values during the build.
+
+### Map tiles
+
+Set `VITE_CARTO_API_KEY` in `.env.local` to use the CARTO Voyager basemap. Add the same variable to Vercel's Production environment before deploying. Without a key, the map uses OpenStreetMap tiles.
+
+Request a key at [CARTO Basemaps](https://www.carto.com/basemaps/apikey/). The key is visible in browser tile requests; restrict it to your site's domains in the CARTO dashboard.
+
 ---
 
 ## Personalization
