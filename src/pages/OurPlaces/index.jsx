@@ -355,9 +355,8 @@ export default function OurPlaces() {
 
           <MapContainer center={CITY_CENTER} zoom={CITY_ZOOM} className={styles.map} ref={mapRef}>
             <TileLayer
-              attribution='&copy; <a href="https://carto.com/">Carto</a>'
-              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-              subdomains="abcd"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
               maxZoom={19}
             />
             <MapClickHandler onMapClick={handleMapClick} />
